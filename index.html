@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BodyGoal Tracker</title>
+    <!-- Load Tailwind CSS --><script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Inter font --><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Fantastic Gym Background - UPDATED WITH USER'S IMAGE */
+            background-image: url('https://image2url.com/images/1760695254267-c782a4e7-93ec-4fb6-8d7a-6a504a221b9f.png');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed; /* Optional: Makes background static */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        .card {
+            max-width: 480px;
+            width: 100%;
+            /* Slightly transparent white card for background visibility */
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), 0 4px 6px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(2px); /* Subtle blur effect */
+            transition: all 0.3s ease;
+        }
+        .input-group label {
+            font-weight: 600;
+            color: #4a5568;
+        }
+        .input-field {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            transition: border-color 0.2s;
+            margin-top: 0.25rem;
+        }
+        .input-field:focus {
+            border-color: #3b82f6; /* Blue 500 */
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+        }
+        .result-box {
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            text-align: center;
+        }
+        .hero-message {
+            font-size: 1.25rem; /* Reduced size slightly for better fit */
+            font-weight: 700;
+            margin-top: 1rem;
+        }
+        #suggestion-output {
+            text-align: left;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+        /* Custom styles for dynamic content */
+        #suggestion-output h4 {
+            font-weight: 700;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            color: #1f2937;
+        }
+        #suggestion-output ul {
+            list-style: disc;
+            margin-left: 1.5rem;
+            padding-left: 0;
+        }
+        .signature {
+            font-weight: 600; /* Made your name bolder */
+            color: #333; /* Darker color for emphasis */
+            margin-top: 1rem;
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-overlay" class="fixed inset-0 bg-gray-100 bg-opacity-70 z-50 flex items-center justify-center hidden">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    </div>
+
+    <div class="card">
+        <h1 class="text-3xl font-extrabold text-gray-800 mb-2">BodyGoal Tracker 🎯</h1>
+        <p class="text-gray-500 mb-6">Find your **Healthy Weight Goal** (BMI 22) and get a safe path to reach it.</p>
+
+        <!-- Input Section --><div class="space-y-4">
+            <!-- Weight Input --><div class="input-group">
+                <label for="weight-kg" class="block text-sm">Current Weight (kg)</label>
+                <input type="number" id="weight-kg" class="input-field" placeholder="e.g., 70.5" step="0.1">
+            </div>
+
+            <!-- Height Input (Feet and Inches) --><div class="input-group">
+                <label class="block text-sm mb-1">Height</label>
+                <div class="flex space-x-4">
+                    <div class="w-1/2">
+                        <input type="number" id="height-ft" class="input-field" placeholder="Feet (e.g., 5)" min="3" max="7">
+                    </div>
+                    <div class="w-1/2">
+                        <input type="number" id="height-in" class="input-field" placeholder="Inches (e.g., 6)" min="0" max="11">
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="calculateGoal()" id="calculate-btn"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transform transition duration-150 hover:scale-[1.01] focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50">
+                Calculate My Goal!
+            </button>
+
+            <div id="error-message" class="text-red-600 text-center text-sm mt-3 hidden">
+                Please enter valid numbers for your weight and height.
+            </div>
+        </div>
+
+        <!-- Result Section --><div id="result-container" class="hidden">
+            <div id="result-summary" class="result-box bg-blue-50 text-blue-800 mt-4">
+                <p class="text-sm font-semibold">Your Healthy Weight Goal (BMI 22)</p> 
+                <p class="text-4xl font-extrabold mt-1 mb-3"><span id="target-weight">--</span> kg</p>
+                <p class="text-lg font-medium"><span id="difference-message">--</span></p>
+            </div>
+            
+            <!-- Feature 1: Total Calories to Gain or Lose --><div id="total-cal-goal" class="result-box bg-yellow-50 text-yellow-800 mt-4">
+                <p class="text-sm font-semibold uppercase">Total Calories to <span id="goal-action" class="font-bold">--</span></p>
+                <p class="text-3xl font-extrabold mt-1"><span id="total-calories-needed">--</span> kcal</p>
+                <p class="text-xs mt-1 text-yellow-700">(Roughly 7,700 kcal per kg)</p>
+            </div>
+
+            <div id="plan-details" class="result-box bg-white border border-gray-200 shadow-inner mt-4 text-gray-700">
+                <h3 class="text-xl font-bold mb-3 text-gray-800">Your Action Plan 🚀</h3>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="p-3 bg-gray-50 rounded-lg">
+                        <p class="text-xs font-semibold uppercase text-gray-500">Suggested Daily Calories</p>
+                        <p class="text-2xl font-bold text-green-600 mt-1"><span id="suggested-calories">--</span> kcal</p>
+                    </div>
+                    <div class="p-3 bg-gray-50 rounded-lg">
+                        <p class="text-xs font-semibold uppercase text-gray-500">Estimated Goal Days</p>
+                        <p class="text-2xl font-bold text-purple-600 mt-1"><span id="estimated-days">--</span> days</p>
+                    </div>
+                </div>
+
+                <p id="hero-message" class="hero-message text-center text-gray-800"></p>
+            </div>
+        </div>
+        
+        <!-- Features 3 & 4: Dynamic Suggestions Section (Meal/Activity) --><div id="dynamic-content-section" class="mt-6 pt-4">
+            <h3 class="text-xl font-bold text-gray-800 mb-3" id="content-header">Personalized Suggestions</h3>
+            
+            <button onclick="fetchSuggestions()" id="suggestions-btn"
+                class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transform transition duration-150 focus:outline-none focus:ring-4 focus:ring-green-500 focus:ring-opacity-50 disabled:bg-gray-400">
+                Get Personalized Plan
+            </button>
+            
+            <div id="suggestion-output" class="mt-4 p-4 bg-gray-50 border border-dashed rounded-xl text-sm text-gray-700 min-h-[100px] flex items-center justify-center">
+                Click the button above after calculating your goal to get specific meal and activity advice!
+            </div>
+        </div>
+
+        <!-- Signature --><p class="text-center text-gray-600 text-base signature">Humza Siddiqui</p>
+        <p class="text-center text-gray-400 text-sm">Thank thank you!</p>
+
+    </div>
+
+    <!-- Firebase SDKs --><script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        setLogLevel('debug');
+
+        // --- GLOBAL FIREBASE VARIABLES (MANDATORY USE) ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "mock-key", authDomain: "mock-domain", projectId: "mock-project" };
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        // --------------------------------------------------
+
+        let db;
+        let auth;
+        let userId = 'anonymous'; // Still define userId for Firestore functions
+
+        const overlay = document.getElementById('loading-overlay');
+        
+        function showLoading() { overlay.classList.remove('hidden'); }
+        function hideLoading() { overlay.classList.add('hidden'); }
+
+        async function initFirebase() {
+            showLoading();
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                if (auth.currentUser) {
+                    userId = auth.currentUser.uid;
+                } else {
+                    userId = crypto.randomUUID(); // Fallback for anonymous users if auth fails
+                }
+            } catch (error) {
+                console.error("Firebase Initialization Error:", error);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function saveResult(data) {
+            if (!db || !userId) {
+                console.warn("Firestore not initialized or userId unavailable. Cannot save.");
+                return;
+            }
+
+            try {
+                // Private data path: /artifacts/{appId}/users/{userId}/bodygoal_records/{documentId}
+                const docRef = doc(db, "artifacts", appId, "users", userId, "bodygoal_records", "latest");
+                await setDoc(docRef, data, { merge: true });
+                console.log("Result successfully saved to Firestore.");
+            } catch (e) {
+                console.error("Error saving document: ", e);
+            }
+        }
+
+        // Expose saveResult and calculateGoal to the global scope
+        window.saveResult = saveResult;
+        window.calculateGoal = calculateGoal;
+        window.fetchSuggestions = fetchSuggestions;
+        
+        // Auto-initialize on load
+        initFirebase();
+    </script>
+    
+    <script>
+        // --- GEMINI API INTEGRATION ---
+        // Function to handle exponential backoff for fetch retries
+        async function fetchWithRetry(url, options, maxRetries = 5) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        // If not okay, but non-retriable (4xx client error), return response immediately
+                        // DO NOT consume the stream here with response.json() or response.text()
+                        if (response.status >= 400 && response.status < 500) {
+                            return response; 
+                        }
+                        // For 5xx errors (server errors), retry
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response; // Success
+                } catch (error) {
+                    console.warn(`Fetch attempt ${i + 1} failed: ${error.message}. Retrying...`);
+                    if (i === maxRetries - 1) throw error;
+                    const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+
+        // Global API Key (MANDATORY setup)
+        const apiKey = "AIzaSyBErFVFYflyVKBmtkSGg5fbtXxOaQBRxrI"; // API Key configured here
+        const modelName = "gemini-2.5-flash-preview-09-2025";
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
+        async function callGeminiAPI(userQuery, systemPrompt) {
+            if (!apiKey) {
+                return '<p class="text-red-500">API Key is missing for Personalized Suggestions. Please ensure it is configured in the HTML file.</p>';
+            }
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                // Use Google Search for grounded, up-to-date information
+                tools: [{ "google_search": {} }], 
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+            };
+
+            try {
+                const response = await fetchWithRetry(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    // FIX: Read the stream ONCE for the error message
+                    const errorText = await response.text(); 
+                    console.error("API Error Response Body:", errorText);
+
+                    // Attempt to extract a cleaner error message from the JSON response body
+                    let userFriendlyError = `API call failed: ${response.status}.`;
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        userFriendlyError += ` Details: ${errorJson.error?.message || 'Unknown API error.'}`;
+                    } catch {
+                        userFriendlyError += ` Raw Error: ${errorText.substring(0, 100)}...`;
+                    }
+                    
+                    throw new Error(userFriendlyError);
+                }
+
+                // If response is OK, read the stream as JSON for the result
+                const result = await response.json(); 
+                
+                // Replace markdown headings with HTML for better styling
+                let text = result.candidates?.[0]?.content?.parts?.[0]?.text || "Could not generate suggestions.";
+                
+                // Simple markdown to HTML conversion for lists and headers
+                text = text.replace(/### (.*)/g, '<h4>$1</h4>');
+                text = text.replace(/## (.*)/g, '<h4>$1</h4>');
+                text = text.replace(/\* (.*)/g, '<li>$1</li>');
+                
+                // Wrap list items in <ul> and fix fragmented lists
+                text = '<ul>' + text.trim().split('\n\n').map(p => {
+                    if (p.startsWith('<li>') || p.startsWith('<h4>')) {
+                        return p;
+                    }
+                    return '<p>' + p + '</p>';
+                }).join('') + '</ul>';
+                text = text.replace(/<\/ul><ul>/g, ''); // Fix split lists
+
+                return text;
+
+            } catch (error) {
+                console.error("Gemini API Error:", error);
+                return `<p class="text-red-500">Failed to fetch plan suggestions. Please try again. Error: ${error.message}</p>`;
+            }
+        }
+
+        let currentGoalData = null; // Store goal data for suggestions
+
+        async function fetchSuggestions() {
+            const suggestionsBtn = document.getElementById('suggestions-btn');
+            const outputEl = document.getElementById('suggestion-output');
+
+            if (!currentGoalData) {
+                outputEl.innerHTML = '<p class="text-red-500">Please calculate your goal first using the blue button above.</p>';
+                return;
+            }
+            if (!apiKey) { // Re-check API key before making the call
+                outputEl.innerHTML = '<p class="text-red-500">API Key is missing for Personalized Suggestions. Please configure it in the HTML file.</p>';
+                return;
+            }
+
+
+            suggestionsBtn.disabled = true;
+            suggestionsBtn.textContent = 'Generating Personalized Plan... 🧠';
+            outputEl.innerHTML = '<div class="text-center py-6 text-gray-400">Searching for current best practices and advice...</div><div class="animate-pulse text-center">Loading...</div>';
+
+            const { differenceKg, suggestedCalories, targetWeightKg } = currentGoalData;
+
+            // Determine goal
+            const isGainer = differenceKg > 0;
+            const weightToChange = Math.abs(differenceKg).toFixed(1);
+
+            let userQuery, systemPrompt;
+            
+            if (isGainer) {
+                userQuery = `I need to gain ${weightToChange} kg. My target daily calories are ${suggestedCalories} kcal. Provide a simple, 3-point, high-calorie meal guide focusing on protein and healthy fats, and 2-3 essential lifestyle tips for safe weight gain.`;
+                systemPrompt = "You are a friendly, encouraging sports nutritionist. Provide a meal plan and food suggestions in a concise, bulleted list format, avoiding medical advice.";
+            } else {
+                userQuery = `I need to lose ${weightToChange} kg. My target daily calories are ${suggestedCalories} kcal. Provide a simple, 3-point, effective activity plan (beginner-friendly exercises that burn calories) and 2-3 essential lifestyle tips for sustainable weight loss.`;
+                systemPrompt = "You are an encouraging fitness coach. Provide a short, actionable exercise plan, using clear, bulleted instructions and mentioning duration/frequency. Avoid giving medical advice.";
+            }
+
+            const generatedHtml = await callGeminiAPI(userQuery, systemPrompt);
+            
+            outputEl.innerHTML = generatedHtml;
+
+            suggestionsBtn.disabled = false;
+            suggestionsBtn.textContent = 'Get Personalized Plan';
+        }
+
+        // --- CORE CALCULATION LOGIC ---
+        
+        /**
+         * Converts feet and inches to meters.
+         * @param {number} ft - Feet.
+         * @param {number} inch - Inches.
+         * @returns {number} Height in meters.
+         */
+        function convertHeightToMeters(ft, inch) {
+            const totalInches = (ft * 12) + inch;
+            // 1 inch = 0.0254 meters
+            return totalInches * 0.0254;
+        }
+
+        /**
+         * Calculates the target weight for BMI 22.
+         * BMI = Weight / Height^2 (in meters) -> Weight = BMI * Height^2
+         * @param {number} heightMeters - Height in meters.
+         * @returns {number} Target weight in kg.
+         */
+        function calculateTargetWeight(heightMeters) {
+            const TARGET_BMI = 22;
+            return TARGET_BMI * Math.pow(heightMeters, 2);
+        }
+
+        /**
+         * Main function to perform all calculations and update the UI.
+         */
+        function calculateGoal() {
+            const weightKg = parseFloat(document.getElementById('weight-kg').value);
+            const heightFt = parseInt(document.getElementById('height-ft').value);
+            const heightIn = parseInt(document.getElementById('height-in').value);
+
+            const errorEl = document.getElementById('error-message');
+            const resultContainer = document.getElementById('result-container');
+            const suggestionsBtn = document.getElementById('suggestions-btn');
+            
+            // Input validation
+            if (isNaN(weightKg) || weightKg <= 0 || 
+                isNaN(heightFt) || heightFt <= 0 || 
+                isNaN(heightIn) || heightIn < 0) {
+                errorEl.classList.remove('hidden');
+                resultContainer.classList.add('hidden');
+                suggestionsBtn.disabled = true;
+                return;
+            } else {
+                errorEl.classList.add('hidden');
+            }
+
+            const heightMeters = convertHeightToMeters(heightFt, heightIn);
+            const targetWeightKg = calculateTargetWeight(heightMeters);
+            
+            // Round to one decimal place for display
+            const targetWeightRounded = targetWeightKg.toFixed(1);
+            
+            // Difference (positive means gain needed, negative means loss needed)
+            const differenceKg = targetWeightKg - weightKg;
+            const diffKgRounded = Math.abs(differenceKg).toFixed(1);
+
+            // Constants for calculation
+            const CALORIES_PER_KG = 7700; // Approximate
+            const DAILY_CAL_ADJUSTMENT = 500; // Safe daily adjustment (deficit or surplus)
+            const BASELINE_DAILY_CALORIES = 2000; // Simple baseline for estimation (future: BMR based)
+
+            let suggestedCalories;
+            let differenceMessage;
+            let heroMessage;
+            let estimatedDays;
+            let goalAction; // New variable for UI text
+
+            // Calculate total calorie change needed (Feature 1)
+            const totalCalorieChange = Math.abs(differenceKg) * CALORIES_PER_KG;
+
+            // Calculate estimated days
+            if (Math.abs(differenceKg) > 0.5) { // Check for a significant difference
+                estimatedDays = Math.ceil(totalCalorieChange / DAILY_CAL_ADJUSTMENT);
+
+                if (differenceKg > 0.5) { // Need to gain weight
+                    suggestedCalories = BASELINE_DAILY_CALORIES + DAILY_CAL_ADJUSTMENT;
+                    differenceMessage = `You need to **gain** ${diffKgRounded} kg.`;
+                    goalAction = "GAIN";
+                    heroMessage = `By consuming a safe surplus, you'll be a BodyGoal Hero in ${estimatedDays} days! 💪`;
+                    
+                } else { // Need to lose weight
+                    suggestedCalories = BASELINE_DAILY_CALORIES - DAILY_CAL_ADJUSTMENT;
+                    differenceMessage = `You need to **lose** ${diffKgRounded} kg.`;
+                    goalAction = "LOSE";
+                    heroMessage = `By maintaining a safe deficit, you'll be a BodyGoal Hero in ${estimatedDays} days! 🌟`;
+                }
+                
+            } else { // Already close to target
+                suggestedCalories = BASELINE_DAILY_CALORIES;
+                differenceMessage = "You are already at your healthy weight!";
+                estimatedDays = 0;
+                goalAction = "MAINTAIN";
+                heroMessage = "Congratulations! Maintain your current weight to stay healthy! 🎉";
+            }
+
+            // Store for suggestions
+            currentGoalData = {
+                differenceKg: differenceKg,
+                suggestedCalories: suggestedCalories,
+                targetWeightKg: parseFloat(targetWeightRounded)
+            };
+
+            // --- Update UI ---
+            document.getElementById('target-weight').textContent = targetWeightRounded;
+            document.getElementById('difference-message').innerHTML = differenceMessage;
+            document.getElementById('suggested-calories').textContent = suggestedCalories;
+            document.getElementById('estimated-days').textContent = estimatedDays;
+            document.getElementById('hero-message').textContent = heroMessage;
+            document.getElementById('goal-action').textContent = goalAction; // New
+            document.getElementById('total-calories-needed').textContent = Math.round(totalCalorieChange).toLocaleString(); // New
+            
+            resultContainer.classList.remove('hidden');
+            suggestionsBtn.disabled = false;
+            document.getElementById('suggestion-output').innerHTML = 'Click **Get Personalized Plan** for meal/activity suggestions.';
+
+
+            // --- Save to Firestore ---
+            const resultData = {
+                timestamp: new Date().toISOString(),
+                input: {
+                    weightKg: weightKg,
+                    heightFt: heightFt,
+                    heightIn: heightIn,
+                },
+                output: {
+                    targetWeightKg: parseFloat(targetWeightRounded),
+                    differenceKg: parseFloat(differenceKg.toFixed(1)),
+                    suggestedCalories: suggestedCalories,
+                    estimatedDays: estimatedDays
+                }
+            };
+
+            // Call the exposed Firestore function
+            if (window.saveResult) {
+                window.saveResult(resultData);
+            }
+        }
+    </script>
+</body>
+</html>
